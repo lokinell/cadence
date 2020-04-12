@@ -296,6 +296,7 @@ func connectToCassandra(c *cli.Context) *gocql.Session {
 	clusterCfg.PoolConfig.HostSelectionPolicy = nil
 	clusterCfg.Consistency = gocql.LocalQuorum
 
+	fmt.Printf("clusterConfig: %+v\n", clusterCfg)
 	session, err := clusterCfg.CreateSession()
 	if err != nil {
 		ErrorAndExit("connect to Cassandra failed", err)
