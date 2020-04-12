@@ -920,6 +920,7 @@ func retryReadHistoryBranch(
 		var err error
 		preconditionForDBCall(totalDBRequests, limiter)
 		resp, err = historyStore.ReadHistoryBranch(req)
+		fmt.Println("got error: ", err)
 		return err
 	}
 

@@ -164,6 +164,7 @@ func (h *cassandraHistoryV2Persistence) ReadHistoryBranch(
 	request *p.InternalReadHistoryBranchRequest,
 ) (*p.InternalReadHistoryBranchResponse, error) {
 
+	fmt.Println("calling persistence.ReadHistoryBranch")
 	treeID := request.TreeID
 	branchID := request.BranchID
 
@@ -186,8 +187,11 @@ func (h *cassandraHistoryV2Persistence) ReadHistoryBranch(
 	nodeID := int64(0)
 	txnID := int64(0)
 
+	fmt.Println("iterator size: ", iter.NumRows())
 	for iter.Scan(&nodeID, &txnID, &eventBlob.Data, &eventBlob.Encoding) {
+		fmt.Println("in loop")
 		if txnID < lastTxnID {
+			fmt.Println("here 1")
 			// assuming that business logic layer is correct and transaction ID only increase
 			// thus, valid event batch will come with increasing transaction ID
 
@@ -203,14 +207,17 @@ func (h *cassandraHistoryV2Persistence) ReadHistoryBranch(
 
 		switch {
 		case nodeID < lastNodeID:
+			fmt.Println("here 2")
 			return nil, &workflow.InternalServiceError{
 				Message: fmt.Sprintf("corrupted data, nodeID cannot decrease"),
 			}
 		case nodeID == lastNodeID:
+			fmt.Println("here 3")
 			return nil, &workflow.InternalServiceError{
 				Message: fmt.Sprintf("corrupted data, same nodeID must have smaller txnID"),
 			}
 		default: // row.NodeID > lastNodeID:
+			fmt.Println("here 4")
 			// NOTE: when row.nodeID > lastNodeID, we expect the one with largest txnID comes first
 			lastTxnID = txnID
 			lastNodeID = nodeID
@@ -220,11 +227,13 @@ func (h *cassandraHistoryV2Persistence) ReadHistoryBranch(
 	}
 
 	if err := iter.Close(); err != nil {
+		fmt.Println("here 5")
 		return nil, &workflow.InternalServiceError{
 			Message: fmt.Sprintf("ReadHistoryBranch. Close operation failed. Error: %v", err),
 		}
 	}
 
+	fmt.Println("persistence call about to return: ", len(history))
 	return &p.InternalReadHistoryBranchResponse{
 		History:           history,
 		NextPageToken:     pagingToken,
