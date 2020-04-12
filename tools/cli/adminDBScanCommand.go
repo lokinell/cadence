@@ -197,52 +197,69 @@ func AdminDBScan(c *cli.Context) {
 	targetRPS := c.Int(FlagRPS)
 	scaleUpSeconds := c.Int(FlagRPSScaleUpSeconds)
 	scanWorkerCount := c.Int(FlagConcurrency)
-	executionsPageSize := c.Int(FlagPageSize)
-	scanReportRate := c.Int(FlagReportRate)
+	//executionsPageSize := c.Int(FlagPageSize)
+	//scanReportRate := c.Int(FlagReportRate)
 	if numShards < scanWorkerCount {
 		scanWorkerCount = numShards
 	}
 
-	payloadSerializer := persistence.NewPayloadSerializer()
+	//payloadSerializer := persistence.NewPayloadSerializer()
 	rateLimiter := getRateLimiter(startingRPS, targetRPS, scaleUpSeconds)
 	session := connectToCassandra(c)
 	defer session.Close()
 	historyStore := cassp.NewHistoryV2PersistenceFromSession(session, loggerimpl.NewNopLogger())
-	branchDecoder := codec.NewThriftRWEncoder()
-	scanOutputDirectories := createScanOutputDirectories()
+	//branchDecoder := codec.NewThriftRWEncoder()
+	//scanOutputDirectories := createScanOutputDirectories()
 
-	reports := make(chan *ShardScanReport)
-	for i := 0; i < scanWorkerCount; i++ {
-		go func(workerIdx int) {
-			for shardID := lowerShardBound; shardID < upperShardBound; shardID++ {
-				if shardID%scanWorkerCount == workerIdx {
-					reports <- scanShard(
-						session,
-						shardID,
-						scanOutputDirectories,
-						rateLimiter,
-						executionsPageSize,
-						payloadSerializer,
-						historyStore,
-						branchDecoder)
-				}
-			}
-		}(i)
+	totalDB := int64(0)
+	req := &persistence.InternalReadHistoryBranchRequest{
+		TreeID: "bebc1f5a-e69e-41fc-8841-760fdf81fe6e",
+		BranchID: "2fbea11a-b616-4d7b-a943-972d92eb4aca",
+		MinNodeID: common.FirstEventID,
+		MaxNodeID: common.EndEventID,
+		ShardID:   9,
+		PageSize: historyPageSize,
+	}
+	resp, err := retryReadHistoryBranch(rateLimiter, &totalDB, historyStore, req)
+	if err != nil {
+		panic(err)
 	}
 
-	startTime := time.Now()
-	progressReport := &ProgressReport{}
-	for i := 0; i < numShards; i++ {
-		report := <-reports
-		includeShardInProgressReport(report, progressReport, startTime)
-		if i%scanReportRate == 0 || i == numShards-1 {
-			reportBytes, err := json.MarshalIndent(*progressReport, "", "\t")
-			if err != nil {
-				ErrorAndExit("failed to print progress", err)
-			}
-			fmt.Println(string(reportBytes))
-		}
-	}
+	fmt.Printf("resp: %+v\n", resp)
+	fmt.Println("total db request: ", totalDB)
+
+	//reports := make(chan *ShardScanReport)
+	//for i := 0; i < scanWorkerCount; i++ {
+	//	go func(workerIdx int) {
+	//		for shardID := lowerShardBound; shardID < upperShardBound; shardID++ {
+	//			if shardID%scanWorkerCount == workerIdx {
+	//				reports <- scanShard(
+	//					session,
+	//					shardID,
+	//					scanOutputDirectories,
+	//					rateLimiter,
+	//					executionsPageSize,
+	//					payloadSerializer,
+	//					historyStore,
+	//					branchDecoder)
+	//			}
+	//		}
+	//	}(i)
+	//}
+	//
+	//startTime := time.Now()
+	//progressReport := &ProgressReport{}
+	//for i := 0; i < numShards; i++ {
+	//	report := <-reports
+	//	includeShardInProgressReport(report, progressReport, startTime)
+	//	if i%scanReportRate == 0 || i == numShards-1 {
+	//		reportBytes, err := json.MarshalIndent(*progressReport, "", "\t")
+	//		if err != nil {
+	//			ErrorAndExit("failed to print progress", err)
+	//		}
+	//		fmt.Println(string(reportBytes))
+	//	}
+	//}
 }
 
 func scanShard(

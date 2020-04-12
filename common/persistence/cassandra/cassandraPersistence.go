@@ -1373,7 +1373,7 @@ func (d *cassandraPersistence) GetWorkflowExecution(request *p.GetWorkflowExecut
 		bufferedEventsBlobs = append(bufferedEventsBlobs, blob)
 	}
 	state.BufferedEvents = bufferedEventsBlobs
-	
+
 	return &p.InternalGetWorkflowExecutionResponse{State: state}, nil
 }
 
