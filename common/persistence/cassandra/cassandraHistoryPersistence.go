@@ -172,6 +172,7 @@ func (h *cassandraHistoryV2Persistence) ReadHistoryBranch(
 	lastTxnID := request.LastTransactionID
 
 	query := h.session.Query(v2templateReadData, treeID, branchID, request.MinNodeID, request.MaxNodeID)
+	fmt.Println("query we are going to run is: ", query.String())
 
 	iter := query.PageSize(int(request.PageSize)).PageState(request.NextPageToken).Iter()
 	if iter == nil {
